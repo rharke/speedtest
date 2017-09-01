@@ -36,7 +36,8 @@ var settings = {
   enable_quirks: true, // enable quirks for specific browsers. currently it overrides settings to optimize for specific browsers, unless they are already being overridden with the start command
   overheadCompensationFactor: 1048576/925000, //compensation for HTTP+TCP+IP+ETH overhead. 925000 is how much data is actually carried over 1048576 (1mb) bytes downloaded/uploaded. This default value assumes HTTP+TCP+IPv4+ETH with typical MTUs over the Internet. You may want to change this if you're going through your local network with a different MTU or if you're going over IPv6 (see doc.md for some other values)
   telemetry_level: 0, // 0=disabled, 1=basic (results only), 2=full (results+log)
-  url_telemetry: 'telemetry.php' // path to the script that adds telemetry data to the database
+  url_telemetry: 'telemetry.php', // path to the script that adds telemetry data to the database
+  url_prefixes: [''] // list of values to prepend to the url_* values in order to define a "cluster" of servers
 }
 
 var xhr = null // array of currently active xhr requests
@@ -76,6 +77,7 @@ this.addEventListener('message', function (e) {
       if (typeof s.time_dl !== 'undefined') settings.time_dl = s.time_dl // duration of download test
       if (typeof s.time_ul !== 'undefined') settings.time_ul = s.time_ul // duration of upload test
       if (typeof s.enable_quirks !== 'undefined') settings.enable_quirks = s.enable_quirks // enable quirks or not
+      if (typeof s.url_prefixes !== 'undefined') settings.url_prefixes = s.url_prefixes // url prefixes
       // quirks for specific browsers. more may be added in future releases
       if (settings.enable_quirks) {
         var ua = navigator.userAgent
@@ -194,7 +196,7 @@ function dlTest (done) {
       }.bind(this)
       // send xhr
       try { if (settings.xhr_dlUseBlob) xhr[i].responseType = 'blob'; else xhr[i].responseType = 'arraybuffer' } catch (e) { }
-      xhr[i].open('GET', settings.url_dl + url_sep(settings.url_dl) + 'r=' + Math.random() + '&ckSize=' + settings.garbagePhp_chunkSize, true) // random string to prevent caching
+      xhr[i].open('GET', settings.url_prefixes[i % settings.url_prefixes.length] + settings.url_dl + url_sep(settings.url_dl) + 'r=' + Math.random() + '&ckSize=' + settings.garbagePhp_chunkSize, true) // random string to prevent caching
       xhr[i].send()
     }.bind(this), 1 + delay)
   }.bind(this)
@@ -282,7 +284,7 @@ function ulTest (done) {
           delete (xhr[i])
           if (settings.xhr_ignoreErrors === 1) testStream(i,100); //restart stream after 100ms
         }
-        xhr[i].open('POST', settings.url_ul + url_sep(settings.url_ul) + 'r=' + Math.random(), true) // random string to prevent caching
+        xhr[i].open('POST', settings.url_prefixes[i % settings.url_prefixes.length] + settings.url_ul + url_sep(settings.url_ul) + 'r=' + Math.random(), true) // random string to prevent caching
         xhr[i].setRequestHeader('Content-Encoding', 'identity') // disable compression (some browsers may refuse it, but data is incompressible anyway)
         xhr[i].send(reqsmall)
       } else {
@@ -309,7 +311,7 @@ function ulTest (done) {
           if (settings.xhr_ignoreErrors === 1) testStream(i, 100) //restart stream after 100ms
         }.bind(this)
         // send xhr
-        xhr[i].open('POST', settings.url_ul + url_sep(settings.url_ul) + 'r=' + Math.random(), true) // random string to prevent caching
+        xhr[i].open('POST', settings.url_prefixes[i % settings.url_prefixes.length] + settings.url_ul + url_sep(settings.url_ul) + 'r=' + Math.random(), true) // random string to prevent caching
         xhr[i].setRequestHeader('Content-Encoding', 'identity') // disable compression (some browsers may refuse it, but data is incompressible anyway)
         xhr[i].send(req)
       }
